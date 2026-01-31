@@ -1,0 +1,43 @@
+_v:1
+_t:2026-01-31
+_h:3f0f092
+
+:P Claude-Code-Prompts|prompts+skills for Claude AI
+:A spudy-vibing
+:R github.com/spudy-vibing/Claude-Code-Prompts
+
+$type:prompt_collection+skill_registry
+$dist:skills.sh|github
+
+=structure
+./
+  README.md           #main,quick_start,install_cmd
+  CONTRIBUTING.md     #contrib_guidelines
+  LICENSE             #MIT
+  memory-init/
+    SKILL.md          #installable_skill:memory_system
+  prompts/
+    system-prompts/
+      README.md       #category_index
+      claude-memory-system/
+        README.md           #main_docs
+        bootstrap-prompt.md #init_prompt
+        claude-md-template.md #project_template
+        session-hook-setup.md #hook_instructions
+        examples.md         #real_mem_format_examples
+  .claude/
+    settings.json     #hook_config
+    hooks/
+      load-memory.sh  #sessionstart_hook
+    mem/              #this_memory
+
+=patterns
+#skill_format:SKILL.md with yaml frontmatter (name,description) + markdown body
+#prompt_format:Description,Prompt,Variables,Example,Tips sections
+#hook:SessionStart->load-memory.sh->inject mem/* to context
+
+=purpose
++teach Claude persistent memory across sessions
++mechanical enforcement > instruction compliance
++Claude designs own memory format (token efficient, not human readable)
++auto-load via hooks, checkpoint on session end

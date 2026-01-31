@@ -8,6 +8,54 @@ This system solves the problem of Claude "forgetting" project context between se
 
 **Key Insight**: Mechanical enforcement > instruction compliance
 
+---
+
+## Quick Start (Recommended)
+
+### Install the Skill
+
+```bash
+npx skills add spudy-vibing/Claude-Code-Prompts/memory-init
+```
+
+### Initialize in Your Project
+
+```
+/memory-init
+```
+
+That's it. Claude will set up everything and scan your codebase.
+
+---
+
+## Manual Setup
+
+If you prefer not to use the skills CLI, follow these steps:
+
+### 1. Bootstrap the Memory System
+
+Run the [bootstrap prompt](bootstrap-prompt.md) in a new Claude Code session in your project directory. Claude will:
+- Scan your entire codebase
+- Design its own memory format (optimized for its parsing, not human readability)
+- Create `.claude/mem/` directory with initial memory files
+- Report what it found and what format it chose
+
+### 2. Add CLAUDE.md Instructions (Optional)
+
+Copy the [CLAUDE.md template](claude-md-template.md) to your project root and customize the "Project Context" section for your specific project.
+
+### 3. Set Up the SessionStart Hook
+
+Follow the [hook setup instructions](session-hook-setup.md) to configure automatic memory loading. This creates:
+- `.claude/settings.json` with hook configuration
+- `.claude/hooks/load-memory.sh` script
+
+### 4. Verify It Works
+
+Start a new Claude Code session. You should see Claude's memory content appear in the context before any interaction.
+
+---
+
 ## Components
 
 | File | Purpose |
@@ -16,6 +64,8 @@ This system solves the problem of Claude "forgetting" project context between se
 | [claude-md-template.md](claude-md-template.md) | CLAUDE.md template with memory protocol |
 | [session-hook-setup.md](session-hook-setup.md) | Hook configuration for auto-loading |
 | [examples.md](examples.md) | Real-world memory format examples from an actual project |
+
+---
 
 ## How It Works
 
@@ -46,29 +96,7 @@ This system solves the problem of Claude "forgetting" project context between se
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
-
-### 1. Bootstrap the Memory System
-
-Run the [bootstrap prompt](bootstrap-prompt.md) in a new Claude Code session in your project directory. Claude will:
-- Scan your entire codebase
-- Design its own memory format (optimized for its parsing, not human readability)
-- Create `.claude/mem/` directory with initial memory files
-- Report what it found and what format it chose
-
-### 2. Add CLAUDE.md Instructions
-
-Copy the [CLAUDE.md template](claude-md-template.md) to your project root and customize the "Project Context" section for your specific project.
-
-### 3. Set Up the SessionStart Hook
-
-Follow the [hook setup instructions](session-hook-setup.md) to configure automatic memory loading. This creates:
-- `.claude/settings.json` with hook configuration
-- `.claude/hooks/load-memory.sh` script
-
-### 4. Verify It Works
-
-Start a new Claude Code session. You should see Claude's memory content appear in the context before any interaction.
+---
 
 ## Memory Structure
 
@@ -97,6 +125,8 @@ The format inside these files uses a compact, symbol-based encoding optimized fo
 
 See [examples.md](examples.md) for complete real-world examples from an actual project.
 
+---
+
 ## What Gets Captured
 
 | Category | Examples |
@@ -108,6 +138,8 @@ See [examples.md](examples.md) for complete real-world examples from an actual p
 | **Session Context** | What was worked on, questions raised, corrections |
 | **Meta-Knowledge** | Confidence levels, inferred vs confirmed info |
 
+---
+
 ## Checkpoint Triggers
 
 Claude automatically saves memory when it detects session end signals:
@@ -117,6 +149,39 @@ Claude automatically saves memory when it detects session end signals:
 - Any clear signal the conversation is wrapping up
 
 You can also explicitly say "checkpoint" at any time to save current state.
+
+---
+
+## Files Created
+
+After setup, your project will have:
+
+```
+your-project/
+└── .claude/
+    ├── settings.json       # Hook configuration
+    ├── hooks/
+    │   └── load-memory.sh  # Auto-load script
+    └── mem/
+        ├── _index          # Symbol table
+        ├── core            # Architecture & patterns
+        ├── direction       # Roadmap & priorities
+        └── session         # Current context
+```
+
+**Recommended `.gitignore`:**
+```
+.claude/mem/              # Personal memory (don't commit)
+.claude/settings.local.json
+```
+
+**Keep in repo (shared with team):**
+```
+.claude/settings.json     # Hook config
+.claude/hooks/            # Hook scripts
+```
+
+---
 
 ## Tips
 
@@ -129,6 +194,8 @@ You can also explicitly say "checkpoint" at any time to save current state.
 4. **Review direction file** - If you want to see what Claude thinks the roadmap is, you can read `.claude/mem/direction` (it may be cryptic but gives insight).
 
 5. **Git ignore or commit** - Decide whether `.claude/mem/` should be in version control. Committing it shares context across machines; ignoring keeps sessions isolated.
+
+---
 
 ## Troubleshooting
 
@@ -146,6 +213,12 @@ You can also explicitly say "checkpoint" at any time to save current state.
 - Remember: the format is intentionally not human-readable
 - Claude's format may evolve over time as it finds better patterns
 - Trust that Claude can parse what it created
+
+**Want to reset memory?**
+- Delete `.claude/mem/*` files
+- Run `/memory-init` again (or the bootstrap prompt)
+
+---
 
 ## Contributing
 

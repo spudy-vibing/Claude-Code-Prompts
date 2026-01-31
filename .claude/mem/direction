@@ -1,0 +1,24 @@
+_v:1
+_t:2026-01-31
+
+:purpose prompt+skill collection for Claude AI
+
+=status
+$phase:launched
+$skill:memory-init published to skills.sh
+$docs:complete
+
+=distribution
++npx skills add spudy-vibing/Claude-Code-Prompts/memory-init
++github repo public
+~skills.sh indexing pending (needs installs)
+
+=roadmap
++more skills planned
++more prompt categories (coding,writing,analysis,creative,productivity,templates)
+~currently only system-prompts populated
+
+=priorities
+HIGH:get memory-init skill traction,linkedin post
+MED:add more skills
+LOW:fill other prompt categories
