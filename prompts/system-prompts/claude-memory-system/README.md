@@ -106,7 +106,8 @@ DURING SESSION
   Updates memory when meaningful work happens
   Stop hook fires when Claude finishes responding
   → check-checkpoint.sh checks for unsaved learnings
-  → blocks Claude if 10+ turns without recent save (5 min)
+  → blocks Claude if 25+ turns without recent save (10 min)
+  → thresholds configurable via config.sh
 
 CONTEXT COMPACTION
   PreCompact hook fires before compaction
@@ -157,6 +158,22 @@ Keep total `.claude/mem/` content under ~2000 tokens (~8000 characters). The loa
 
 ---
 
+## Configuration
+
+All hook thresholds are configurable via `.claude/hooks/config.sh`. Each hook sources this file and falls back to sensible defaults if it's missing.
+
+```bash
+MEM_MAX_CHARS=8000           # Token budget. load-memory.sh warns above this.
+CHECKPOINT_FRESHNESS=600     # Seconds. Stop hook skips if saved within this window.
+STOP_TURN_THRESHOLD=25       # Transcript lines. Stop hook blocks after this many turns.
+SAVE_TURN_THRESHOLD=4        # Transcript lines. SessionEnd skips trivial sessions below this.
+TOOLS_CAP=20                 # Max tool entries logged in session metadata.
+```
+
+Delete `config.sh` entirely and all hooks continue working with their defaults. Edit one number and the behavior shifts immediately.
+
+---
+
 ## What Gets Captured
 
 | Category | Examples |
@@ -183,6 +200,7 @@ your-project/
     │   ├── code-style.md
     │   └── testing.md
     ├── hooks/
+    │   ├── config.sh           # Tunable thresholds (optional)
     │   ├── load-memory.sh      # SessionStart: inject memory
     │   ├── check-checkpoint.sh # Stop: remind to save
     │   ├── pre-compact.sh      # PreCompact: preserve through compaction
