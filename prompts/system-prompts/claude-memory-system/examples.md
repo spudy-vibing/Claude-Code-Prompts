@@ -249,7 +249,7 @@ LOW:windows,plugin_sdk
 
 ## File: `session` (Current Context)
 
-The session file captures what was learned in the current/recent session.
+The session file captures what was learned in the current/recent session. Note the `=last_session` section at the bottom — this is automatically appended by the SessionEnd hook.
 
 ```
 _v:4
@@ -278,10 +278,20 @@ $status:idle
 =observations
 ~hooks inject content before Claude sees user message
 ~this removes dependency on Claude "remembering" to follow instructions
-~still need manual checkpoint at session end (no hook for that)
 
 =confidence
 HIGH:hook setup,memory format,user expectations
+
+=last_session
+_t:2026-01-31
+_sid:a1b2c3d4
+_h:5ccc753
+_b:main
+_turns:47
+=tools_used
++Edit:.claude/hooks/load-memory.sh
++Write:.claude/settings.json
++Bash:chmod +x .claude/hooks/load-memory.sh
 ```
 
 ### Key patterns:
@@ -292,6 +302,8 @@ HIGH:hook setup,memory format,user expectations
 - `=user_preferences` - Discovered user preferences
 - `=observations` - Inferences (prefixed with `~`)
 - `=confidence` - Confidence levels for different knowledge areas
+- `=last_session` - Auto-appended by SessionEnd hook (metadata from transcript)
+- `=tools_used` - Auto-appended by SessionEnd hook (tools and files from transcript)
 
 ---
 

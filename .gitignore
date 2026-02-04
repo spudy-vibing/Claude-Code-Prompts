@@ -20,11 +20,16 @@ node_modules/
 *.tmp
 *.temp
 
-# Claude Code
-.claude/mem/              # Personal memory (session-specific)
-.claude/settings.local.json  # Local settings overrides
+# Claude Code — personal/local (ignore)
+# Personal memory (session-specific)
+.claude/mem/
+# Memory backups from re-init
+.claude/mem.bak/
+# Local settings overrides
+.claude/settings.local.json
 .claude/*.log
 
-# Keep these in repo (don't ignore):
-# .claude/settings.json    # Hook configuration (shared)
-# .claude/hooks/           # Hook scripts (shared)
+# Claude Code — shared (keep in repo):
+# .claude/settings.json
+# .claude/hooks/
+# .claude/rules/

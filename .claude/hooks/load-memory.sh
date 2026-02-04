@@ -1,7 +1,31 @@
 #!/bin/bash
+set -euo pipefail
+
+# SessionStart hook: inject .claude/mem/* into Claude's context
+# Also warns if memory exceeds token budget.
+
 cd "$(dirname "$0")/../.." || exit 1
 
-for f in .claude/mem/*; do
+MEM_DIR=".claude/mem"
+
+# Exit cleanly if no memory directory
+[[ -d "$MEM_DIR" ]] || exit 0
+
+# Token budget check (~2000 tokens ≈ 8000 chars)
+MAX_CHARS=8000
+TOTAL_CHARS=0
+
+for f in "$MEM_DIR"/*; do
+  [[ -f "$f" ]] || continue
+  FILE_CHARS=$(wc -c < "$f" | tr -d ' ')
+  TOTAL_CHARS=$((TOTAL_CHARS + FILE_CHARS))
+done
+
+if [[ "$TOTAL_CHARS" -gt "$MAX_CHARS" ]]; then
+  echo "!!! MEMORY EXCEEDS TOKEN BUDGET (${TOTAL_CHARS} chars > ${MAX_CHARS}). Compact your .claude/mem/ files. !!!"
+fi
+
+for f in "$MEM_DIR"/*; do
   if [[ -f "$f" ]]; then
     echo "=== $(basename "$f") ==="
     cat "$f"

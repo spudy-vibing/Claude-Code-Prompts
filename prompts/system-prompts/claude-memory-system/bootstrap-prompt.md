@@ -2,7 +2,7 @@
 
 ## Description
 
-One-time prompt to run when setting up Claude's persistent memory for a new project. Claude will scan your codebase and create its own optimized memory format.
+One-time prompt to run when setting up Claude's persistent memory for a new project. Claude will scan your codebase and create its own optimized memory format. Use this for manual setup — the `/memory-init` skill handles this automatically along with hook configuration.
 
 ## Prompt
 
@@ -43,20 +43,24 @@ Everything needed to fully understand this project:
 
 **Meta-Knowledge**: Your confidence levels, what's inferred vs confirmed, what you're uncertain about, what you'd want to verify
 
+## Token Budget
+
+Keep total `.claude/mem/` content under ~2000 tokens (~8000 characters). If you need more space:
+- Compact: increase abbreviation density
+- Prune: drop low-confidence inferences
+- Promote: move stable facts to `CLAUDE.md` or `.claude/rules/` where they load natively without hook injection cost
+
 ## Operating Protocol
 
 **Bootstrap (now):**
 1. Scan the entire codebase
 2. Design your memory format based on what you discover
-3. Create your memory structure
+3. Create your memory structure at `.claude/mem/`
 4. Populate it with everything you can infer
 5. Tell me: what you found, what format you chose and why, what you're uncertain about
 
 **Session start:**
-1. Load your memory
-2. Detect codebase changes
-3. Update incrementally
-4. Signal ready with version and brief state summary
+Memory auto-loads via SessionStart hook. Check git hash for changes, update incrementally.
 
 **Continuous:**
 - Update your in-memory model as you learn
@@ -64,7 +68,8 @@ Everything needed to fully understand this project:
 - Capture direction when I describe plans or priorities
 - Note when I correct your understanding (update confidence, mark previous inference as wrong)
 
-**Checkpoint (when I say "done", "checkpoint", "save", "exit", "thanks", or session clearly ends):**
+**Checkpoint:**
+A Stop hook will remind you to save if you haven't recently. A SessionEnd hook auto-saves session metadata as a safety net. But you should still checkpoint explicitly when you detect session-end signals ("done", "checkpoint", "save", "exit", "thanks"):
 1. Persist everything learned this session
 2. Optimize/compact if beneficial
 3. Version increment
@@ -111,13 +116,14 @@ None - this prompt is used as-is. Claude adapts to whatever codebase it's run in
 2. Paste the prompt above
 3. Claude will scan the codebase and create `.claude/mem/` with its memory files
 4. Review Claude's report on what it found and the format it chose
+5. Set up lifecycle hooks separately (see [hook setup](session-hook-setup.md))
 
 ## Expected Output
 
 Claude will:
 1. Explore the entire codebase structure
 2. Create `.claude/mem/` directory
-3. Create memory files (typically: `core`, `direction`, `api`, `session`)
+3. Create memory files (typically: `_index`, `core`, `direction`, `session`)
 4. Report:
    - What it discovered about the project
    - What memory format it chose and why
@@ -138,3 +144,5 @@ Claude will:
    - Any gotchas or non-obvious things
 
 5. **Say "checkpoint"** - After providing context, trigger a save so Claude remembers what you told it
+
+6. **Set up hooks next** - This prompt only creates memory. You still need the [4 lifecycle hooks](session-hook-setup.md) for mechanical enforcement. Or use `/memory-init` which does both.

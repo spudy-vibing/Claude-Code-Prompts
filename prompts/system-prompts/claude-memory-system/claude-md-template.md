@@ -2,162 +2,51 @@
 
 ## Description
 
-Template for your project's CLAUDE.md file that includes the memory protocol. Customize the "Project Context" section for your specific project.
+Template for your project's CLAUDE.md file. Works alongside `.claude/rules/` for domain standards and `.claude/mem/` for dynamic knowledge. Together these three surfaces give Claude complete project context.
+
+## The Three Memory Surfaces
+
+Before customizing, understand what goes where:
+
+| Surface | Purpose | Mutability | Human-Readable? |
+|---------|---------|------------|-----------------|
+| `CLAUDE.md` | Project identity & behavior | Rarely changes | Yes |
+| `.claude/rules/*.md` | Domain standards (modular) | Occasionally | Yes |
+| `.claude/mem/*` | Dynamic knowledge | Every session | No (Claude-optimized) |
+
+**Decision rule**: Does it change every session? -> `.claude/mem/`. Is it a broad project rule? -> `CLAUDE.md`. Is it a specific domain standard? -> `.claude/rules/`.
 
 ## Template
 
 ```markdown
-# Claude Code Instructions for [PROJECT NAME]
+# [PROJECT NAME]
 
-This file governs Claude's behavior when working on this project.
-
----
+[One-line description of what the project is and does.]
 
 ## Memory Protocol
 
-Persistent memory exists at `.claude/mem/`. This is Claude's memory, Claude's format.
+This project uses persistent memory at `.claude/mem/`. Memory auto-loads on session start via hook. Update memory before ending sessions. A Stop hook will remind you if you forget, and a SessionEnd hook records session metadata automatically.
 
-**On every session start:**
-- Memory is auto-loaded via SessionStart hook
-- No announcement needed unless something significant changed since last checkpoint
-- If git hash differs from stored hash, scan for architecture changes
+## Key Rules
 
-**Before ending any session:**
-- Update `.claude/mem/` with everything learned
-- Capture any new decisions, direction changes, context discovered
-- Checkpoint automatically when session ending is detected
+- [Most important behavioral rule]
+- [Second most important rule]
+- [Third rule]
 
-**Session end triggers (checkpoint immediately when you see these):**
-- "done", "thanks", "that's all", "exit", "checkpoint", "save", "bye", "end", "stop"
-- Any clear signal the conversation is wrapping up
-- User closing the conversation or switching context
+## Current State
 
-**Checkpoint behavior:**
-- Load silently, no confirmation needed
-- Checkpoint silently unless explicitly asked for confirmation
-- Never lose session learnings—always persist before ending
-- If uncertain whether session is ending, checkpoint anyway (safe default)
+- Phase: [current phase/milestone]
+- Focus: [what's actively being worked on]
+- Stack: [key technologies]
 
----
+## Workflow
 
-## Project Context (Always Know This)
+- ASK before: [things requiring discussion]
+- PROCEED with: [things Claude can do autonomously]
+- Always: [universal requirements like running tests]
 
-<!-- CUSTOMIZE THIS SECTION FOR YOUR PROJECT -->
-
-**What [PROJECT NAME] Is:**
-- [Brief description of the project]
-- [Target users/audience]
-- [Core philosophy or principles]
-
-**Current State:**
-- [Current phase or milestone]
-- [What's complete]
-- [What's in progress]
-- [What's planned]
-
-**Architecture Essentials:**
-- [Key frameworks/libraries]
-- [Important patterns used]
-- [Where state lives]
-- [Key directories and their purposes]
-
----
-
-## Coding Standards
-
-<!-- CUSTOMIZE THESE FOR YOUR PROJECT -->
-
-**Follow these patterns:**
-- [Pattern 1]
-- [Pattern 2]
-- [Pattern 3]
-
-**Type Hints:** [Your type hint preferences]
-
-**Error Handling:** [Your error handling approach]
-
-**Imports:** [Your import organization]
-
-**Avoid:**
-- [Anti-pattern 1]
-- [Anti-pattern 2]
-
----
-
-## Workflow Preferences
-
-**When to ask vs proceed:**
-- ASK: [Things requiring discussion]
-- PROCEED: [Things Claude can do autonomously]
-
-**Task approach:**
-1. Understand the request fully before coding
-2. Check existing patterns in codebase first
-3. Prefer editing existing files over creating new ones
-4. Keep changes minimal and focused
-5. [Add project-specific steps]
-
----
-
-## Communication Style
-
-**Output preferences:**
-- Concise responses, no fluff
-- Show code changes directly, don't over-explain obvious things
-- Use tables for comparisons
-- When showing file changes, focus on the delta
-
-**Progress updates:**
-- Use todo lists for multi-step tasks
-- Mark items complete as you go
-- Don't announce every small action
-
----
-
-## Safety Boundaries
-
-**Never do these without explicit permission:**
-- Modify system configuration
-- Write to files outside the project directory
-- Install global packages
-- Push to git remote
-- Delete files (warn and confirm first)
-- [Add project-specific restrictions]
-
-**Always safe:**
-- Reading any file in the project
-- Running tests
-- Running linters
-- Git status/log/diff
-- [Add project-specific safe actions]
-
----
-
-## Testing Requirements
-
-**Before marking work complete:**
-- [Your test command]
-- [Your lint command]
-- [Your type check command]
-
-**When adding features:**
-- Add tests for new functions
-- Test both success and error cases
-- Mock external dependencies
-
----
-
-## Git Workflow
-
-**Commit messages:**
-- Imperative mood: "Add feature" not "Added feature"
-- First line: concise summary (50 chars)
-- [Additional commit message guidelines]
-
-**Never:**
-- Force push to main
-- Commit secrets or credentials
-- Commit without running tests
+@.claude/rules/code-style.md
+@.claude/rules/testing.md
 ```
 
 ## Variables
@@ -165,25 +54,73 @@ Persistent memory exists at `.claude/mem/`. This is Claude's memory, Claude's fo
 | Variable | Description |
 |----------|-------------|
 | `[PROJECT NAME]` | Your project's name |
-| `[Brief description...]` | What your project does |
-| `[Target users...]` | Who uses this project |
+| `[One-line description...]` | What your project does |
 | All `[bracketed items]` | Customize for your project |
+
+## Companion: .claude/rules/
+
+Move domain-specific standards into `.claude/rules/` as separate files. Examples:
+
+**`.claude/rules/code-style.md`**
+```markdown
+# Code Style
+
+- Use TypeScript strict mode
+- Prefer named exports
+- Error handling: use Result types, not try/catch
+```
+
+**`.claude/rules/testing.md`**
+```markdown
+# Testing
+
+Run: `npm test`
+Lint: `npm run lint`
+Type check: `npx tsc --noEmit`
+
+- Add tests for all new functions
+- Test both success and error cases
+- Mock external dependencies
+```
+
+**`.claude/rules/git.md`**
+```markdown
+# Git Workflow
+
+- Commit messages: imperative mood, 50 char first line
+- Never force push to main
+- Never commit secrets or credentials
+```
+
+Rules files support path-specific matching with frontmatter:
+
+**`.claude/rules/api-style.md`**
+```markdown
+---
+paths:
+  - "src/api/**/*.ts"
+---
+# API Rules
+- All endpoints return typed responses
+- Use middleware for auth checks
+```
 
 ## Example Usage
 
-1. Copy this template to your project root as `CLAUDE.md`
-2. Replace all `[bracketed placeholders]` with your project-specific information
-3. Remove sections that don't apply
-4. Add sections specific to your project
+1. Copy the CLAUDE.md template to your project root
+2. Replace all `[bracketed placeholders]` with your specifics
+3. Create `.claude/rules/` with one file per concern
+4. Move coding standards, testing, git rules into their own rule files
+5. Keep CLAUDE.md focused on identity, state, and workflow
 
 ## Tips
 
-1. **Be specific** - Generic instructions are less useful than concrete examples from your codebase
+1. **Keep CLAUDE.md short** - It's the constitution, not the encyclopedia. Details go in rules/ and mem/.
 
-2. **Include real patterns** - Show actual code snippets from your project, not generic examples
+2. **Use @imports** - Reference rules files from CLAUDE.md so they're discoverable.
 
-3. **Update as you go** - When you correct Claude or establish new patterns, add them to CLAUDE.md
+3. **Be specific** - Real patterns from your codebase, not generic examples.
 
-4. **Keep it current** - Outdated instructions are worse than no instructions
+4. **Update CLAUDE.md when direction changes** - New phase? Different focus? Update it.
 
-5. **Prioritize** - Put the most important things first; Claude may not read everything in long files
+5. **Let .claude/mem/ handle the dynamic stuff** - Don't duplicate architecture maps or decision logs in CLAUDE.md. That's what mem/ is for.

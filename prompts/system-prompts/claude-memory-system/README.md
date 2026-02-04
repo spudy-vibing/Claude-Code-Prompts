@@ -1,10 +1,10 @@
 # Claude Memory System
 
-A persistent memory system for Claude Code that enables cross-session context retention. Claude designs its own memory format optimized for its parsing efficiency, and a SessionStart hook ensures automatic loading.
+A persistent memory system for Claude Code that enables cross-session context retention. Claude designs its own memory format optimized for its parsing efficiency, and lifecycle hooks ensure automatic loading, checkpoint reminders, compaction survival, and session-end saving.
 
 ## Overview
 
-This system solves the problem of Claude "forgetting" project context between sessions. Instead of relying on Claude to follow instructions to load memory, it uses mechanical enforcement via hooks.
+This system solves the problem of Claude "forgetting" project context between sessions. Instead of relying on Claude to follow instructions, it uses mechanical enforcement via hooks at every critical lifecycle point.
 
 **Key Insight**: Mechanical enforcement > instruction compliance
 
@@ -24,7 +24,7 @@ npx skills add spudy-vibing/Claude-Code-Prompts/memory-init
 /memory-init
 ```
 
-That's it. Claude will set up everything and scan your codebase.
+That's it. Claude will set up everything — 4 lifecycle hooks, memory directory, and initial codebase scan.
 
 ---
 
@@ -40,15 +40,17 @@ Run the [bootstrap prompt](bootstrap-prompt.md) in a new Claude Code session in 
 - Create `.claude/mem/` directory with initial memory files
 - Report what it found and what format it chose
 
-### 2. Add CLAUDE.md Instructions (Optional)
+### 2. Set Up Lifecycle Hooks
 
-Copy the [CLAUDE.md template](claude-md-template.md) to your project root and customize the "Project Context" section for your specific project.
+Follow the [hook setup instructions](session-hook-setup.md) to configure all 4 hooks:
+- **SessionStart** — Auto-load memory before any interaction
+- **Stop** — Remind Claude to checkpoint after meaningful work
+- **PreCompact** — Preserve memory through context compaction
+- **SessionEnd** — Auto-save session metadata on exit
 
-### 3. Set Up the SessionStart Hook
+### 3. Add CLAUDE.md (Optional)
 
-Follow the [hook setup instructions](session-hook-setup.md) to configure automatic memory loading. This creates:
-- `.claude/settings.json` with hook configuration
-- `.claude/hooks/load-memory.sh` script
+Copy the [CLAUDE.md template](claude-md-template.md) to your project root. This complements the memory system with static project rules.
 
 ### 4. Verify It Works
 
@@ -61,39 +63,61 @@ Start a new Claude Code session. You should see Claude's memory content appear i
 | File | Purpose |
 |------|---------|
 | [bootstrap-prompt.md](bootstrap-prompt.md) | One-time prompt to initialize the memory system |
-| [claude-md-template.md](claude-md-template.md) | CLAUDE.md template with memory protocol |
-| [session-hook-setup.md](session-hook-setup.md) | Hook configuration for auto-loading |
+| [claude-md-template.md](claude-md-template.md) | CLAUDE.md template with three-surface taxonomy |
+| [session-hook-setup.md](session-hook-setup.md) | Hook configuration for all 4 lifecycle hooks |
 | [examples.md](examples.md) | Real-world memory format examples from an actual project |
+
+---
+
+## The Three Memory Surfaces
+
+Claude Code has three complementary memory surfaces. Use the right one for each type of information:
+
+| Surface | Loading | Purpose | Mutability | Human-Readable? |
+|---------|---------|---------|------------|-----------------|
+| `CLAUDE.md` | Native (automatic) | Project identity & behavior rules | Rarely changes | Yes |
+| `.claude/rules/*.md` | Native (automatic, path-matched) | Domain standards | Occasionally | Yes |
+| `.claude/mem/*` | Hook-injected | Dynamic knowledge | Every session | No |
+
+**Decision rule**: Does it change every session? -> `.claude/mem/`. Is it a broad project rule? -> `CLAUDE.md`. Is it a specific domain standard? -> `.claude/rules/`.
+
+### Why Three Surfaces?
+
+- **CLAUDE.md** loads natively without any hooks. Put stable, human-readable project rules here. It's the "constitution."
+- **.claude/rules/** also loads natively. It's modular (one file per concern) and supports path-specific glob matching. Put coding standards, testing rules, git workflow here.
+- **.claude/mem/** requires hook injection but supports Claude-optimized encoding. Put dynamic knowledge here: architecture maps, decision logs, session context, confidence levels.
+
+Static facts in `.claude/mem/` waste tokens on re-injection every session. Move them to CLAUDE.md or rules/ where they load for free.
 
 ---
 
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SESSION START                            │
-├─────────────────────────────────────────────────────────────┤
-│  1. SessionStart hook fires                                 │
-│  2. load-memory.sh reads all .claude/mem/* files            │
-│  3. Content injected into Claude's context as system msg    │
-│  4. Claude has full memory before seeing user message       │
-└─────────────────────────────────────────────────────────────┘
+SESSION START
+  SessionStart hook fires
+  → load-memory.sh reads .claude/mem/* + git state
+  → token budget check (warns if > 8000 chars)
+  → content injected as system context
+  → Claude has full memory before seeing user message
 
-┌─────────────────────────────────────────────────────────────┐
-│                    DURING SESSION                           │
-├─────────────────────────────────────────────────────────────┤
-│  • Claude works with full project understanding             │
-│  • Updates in-memory model as it learns                     │
-│  • Captures decisions, corrections, new context             │
-└─────────────────────────────────────────────────────────────┘
+DURING SESSION
+  Claude works with full project understanding
+  Updates memory when meaningful work happens
+  Stop hook fires when Claude finishes responding
+  → check-checkpoint.sh checks for unsaved learnings
+  → blocks Claude if 10+ turns without recent save (5 min)
 
-┌─────────────────────────────────────────────────────────────┐
-│                    SESSION END                              │
-├─────────────────────────────────────────────────────────────┤
-│  • Triggered by: "done", "thanks", "checkpoint", etc.       │
-│  • Claude persists everything learned to .claude/mem/       │
-│  • Memory files updated for next session                    │
-└─────────────────────────────────────────────────────────────┘
+CONTEXT COMPACTION
+  PreCompact hook fires before compaction
+  → pre-compact.sh re-injects memory as additionalContext
+  → Claude retains memory awareness after compaction
+
+SESSION END
+  SessionEnd hook fires when session terminates
+  → save-memory.sh parses transcript for session metadata
+  → appends tools used, files touched, git state to session file
+  → safety net for learnings Claude didn't explicitly checkpoint
 ```
 
 ---
@@ -107,7 +131,6 @@ Claude chooses its own format, but typically creates files like:
 ├── _index     # Symbol table and format metadata
 ├── core       # Architecture, patterns, key decisions
 ├── direction  # Roadmap, priorities, what's next
-├── api        # Commands, types, contracts
 └── session    # Current context, learned this session
 ```
 
@@ -125,6 +148,13 @@ The format inside these files uses a compact, symbol-based encoding optimized fo
 
 See [examples.md](examples.md) for complete real-world examples from an actual project.
 
+### Token Budget
+
+Keep total `.claude/mem/` content under ~2000 tokens (~8000 characters). The load hook warns if this budget is exceeded. If memory grows too large:
+- **Compact**: merge entries, increase abbreviation density
+- **Prune**: remove low-confidence inferences, old session details
+- **Promote**: move stable facts to `CLAUDE.md` or `.claude/rules/`
+
 ---
 
 ## What Gets Captured
@@ -140,33 +170,28 @@ See [examples.md](examples.md) for complete real-world examples from an actual p
 
 ---
 
-## Checkpoint Triggers
-
-Claude automatically saves memory when it detects session end signals:
-
-- "done", "thanks", "that's all", "bye", "exit"
-- "checkpoint", "save", "end", "stop"
-- Any clear signal the conversation is wrapping up
-
-You can also explicitly say "checkpoint" at any time to save current state.
-
----
-
 ## Files Created
 
 After setup, your project will have:
 
 ```
 your-project/
+├── CLAUDE.md (optional)        # Project identity & rules
 └── .claude/
-    ├── settings.json       # Hook configuration
+    ├── settings.json           # Hook configuration (all 4 hooks)
+    ├── rules/ (optional)       # Domain-specific standards
+    │   ├── code-style.md
+    │   └── testing.md
     ├── hooks/
-    │   └── load-memory.sh  # Auto-load script
+    │   ├── load-memory.sh      # SessionStart: inject memory
+    │   ├── check-checkpoint.sh # Stop: remind to save
+    │   ├── pre-compact.sh      # PreCompact: preserve through compaction
+    │   └── save-memory.sh      # SessionEnd: auto-save metadata
     └── mem/
-        ├── _index          # Symbol table
-        ├── core            # Architecture & patterns
-        ├── direction       # Roadmap & priorities
-        └── session         # Current context
+        ├── _index              # Symbol table
+        ├── core                # Architecture & patterns
+        ├── direction           # Roadmap & priorities
+        └── session             # Current context
 ```
 
 **Recommended `.gitignore`:**
@@ -179,6 +204,8 @@ your-project/
 ```
 .claude/settings.json     # Hook config
 .claude/hooks/            # Hook scripts
+.claude/rules/            # Domain standards
+CLAUDE.md                 # Project identity
 ```
 
 ---
@@ -187,36 +214,42 @@ your-project/
 
 1. **Let Claude choose the format** - Don't try to make the memory human-readable. Claude knows what's efficient for itself.
 
-2. **Trust the hook** - Once set up, you don't need to ask Claude to load memory. It happens automatically.
+2. **Trust the hooks** - Once set up, loading, checkpoint reminders, compaction survival, and session-end saving all happen automatically.
 
 3. **Checkpoint often** - When working on something complex, say "checkpoint" periodically to ensure nothing is lost.
 
-4. **Review direction file** - If you want to see what Claude thinks the roadmap is, you can read `.claude/mem/direction` (it may be cryptic but gives insight).
+4. **Use all three surfaces** - Static rules in CLAUDE.md/rules/, dynamic knowledge in mem/. Don't put everything in one place.
 
-5. **Git ignore or commit** - Decide whether `.claude/mem/` should be in version control. Committing it shares context across machines; ignoring keeps sessions isolated.
+5. **jq is required** - The Stop, PreCompact, and SessionEnd hooks use `jq`. Install via `brew install jq` or `apt install jq`.
 
 ---
 
 ## Troubleshooting
 
 **Memory not loading?**
-- Check that `.claude/hooks/load-memory.sh` is executable (`chmod +x`)
-- Verify `.claude/settings.json` has correct hook configuration
+- Check that all hook scripts are executable (`chmod +x .claude/hooks/*.sh`)
+- Verify `.claude/settings.json` has correct hook configuration for all 4 hooks
 - Ensure `.claude/mem/` directory exists with files
+- Check `jq` is installed: `which jq`
 
 **Claude seems to have forgotten context?**
 - Say "checkpoint" to force a save
 - Check if memory files exist and have content
 - Verify git hash matches (Claude may need to rescan if codebase changed significantly)
+- If context was compacted, the PreCompact hook should have re-injected memory
 
 **Format seems wrong?**
 - Remember: the format is intentionally not human-readable
 - Claude's format may evolve over time as it finds better patterns
 - Trust that Claude can parse what it created
 
+**Token budget warning?**
+- Memory exceeds ~8000 chars. Compact, prune, or promote static facts to CLAUDE.md/rules/
+
 **Want to reset memory?**
 - Delete `.claude/mem/*` files
 - Run `/memory-init` again (or the bootstrap prompt)
+- Existing memory can be backed up to `.claude/mem.bak/` first
 
 ---
 
