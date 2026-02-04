@@ -4,6 +4,10 @@ set -euo pipefail
 # SessionStart hook: inject .claude/mem/* into Claude's context
 # Also warns if memory exceeds token budget.
 
+# Load config (optional — defaults used if missing)
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "$HOOKS_DIR/config.sh" ]] && source "$HOOKS_DIR/config.sh"
+
 cd "$(dirname "$0")/../.." || exit 1
 
 MEM_DIR=".claude/mem"
@@ -12,7 +16,7 @@ MEM_DIR=".claude/mem"
 [[ -d "$MEM_DIR" ]] || exit 0
 
 # Token budget check (~2000 tokens ≈ 8000 chars)
-MAX_CHARS=8000
+MAX_CHARS="${MEM_MAX_CHARS:-8000}"
 TOTAL_CHARS=0
 
 for f in "$MEM_DIR"/*; do

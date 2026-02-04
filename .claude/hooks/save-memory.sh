@@ -6,6 +6,10 @@ set -euo pipefail
 # Extracts what happened (tools, files, git state) so next-session Claude
 # can reconstruct context without needing semantic understanding.
 
+# Load config (optional — defaults used if missing)
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "$HOOKS_DIR/config.sh" ]] && source "$HOOKS_DIR/config.sh"
+
 INPUT=$(cat)
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
@@ -21,13 +25,13 @@ TIMESTAMP=$(date +%Y-%m-%d)
 
 # Count conversation turns — skip trivial sessions
 TURN_COUNT=$(wc -l < "$TRANSCRIPT" 2>/dev/null | tr -d ' ')
-[[ "$TURN_COUNT" -lt 4 ]] && exit 0
+[[ "$TURN_COUNT" -lt "${SAVE_TURN_THRESHOLD:-4}" ]] && exit 0
 
 # Extract tool usage summary (what files were edited, what commands ran)
 TOOLS_USED=$(jq -r '
   select(.type == "tool_use") |
   .name + ":" + (.input.file_path // .input.command // .input.pattern // "" | split("\n")[0])
-' "$TRANSCRIPT" 2>/dev/null | sort -u | head -20)
+' "$TRANSCRIPT" 2>/dev/null | sort -u | head -"${TOOLS_CAP:-20}")
 
 # Extract git state at end of session
 GIT_HASH=$(git log -1 --format=%h 2>/dev/null || echo "unknown")

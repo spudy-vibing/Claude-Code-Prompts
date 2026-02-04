@@ -31,6 +31,23 @@ Create the following directories:
 
 This system uses 4 hooks for full lifecycle coverage. Create all of them.
 
+### Configuration File
+
+Create `.claude/hooks/config.sh` — a shared config sourced by all hooks. Users edit this one file to tune thresholds:
+
+```bash
+#!/bin/bash
+# Memory system configuration
+# Edit these values to tune hook behavior.
+# All hooks fall back to defaults if this file is missing.
+
+MEM_MAX_CHARS=8000           # Token budget (~2000 tokens). load-memory.sh warns above this.
+CHECKPOINT_FRESHNESS=600     # Seconds. Stop hook skips if session saved within this window.
+STOP_TURN_THRESHOLD=25       # Transcript lines. Stop hook only blocks after this many turns.
+SAVE_TURN_THRESHOLD=4        # Transcript lines. SessionEnd hook skips trivial sessions below this.
+TOOLS_CAP=20                 # Max tool entries logged in session metadata.
+```
+
 ### 2A: SessionStart — Load Memory
 
 Create `.claude/hooks/load-memory.sh`:
@@ -39,12 +56,16 @@ Create `.claude/hooks/load-memory.sh`:
 #!/bin/bash
 set -euo pipefail
 
+# Load config (optional — defaults used if missing)
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "$HOOKS_DIR/config.sh" ]] && source "$HOOKS_DIR/config.sh"
+
 cd "$(dirname "$0")/../.." || exit 1
 
 MEM_DIR=".claude/mem"
 [[ -d "$MEM_DIR" ]] || exit 0
 
-MAX_CHARS=8000
+MAX_CHARS="${MEM_MAX_CHARS:-8000}"
 TOTAL_CHARS=0
 
 for f in "$MEM_DIR"/*; do
@@ -78,6 +99,10 @@ Create `.claude/hooks/check-checkpoint.sh`:
 #!/bin/bash
 set -euo pipefail
 
+# Load config (optional — defaults used if missing)
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "$HOOKS_DIR/config.sh" ]] && source "$HOOKS_DIR/config.sh"
+
 INPUT=$(cat)
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
@@ -97,12 +122,12 @@ if [[ -f "$SESSION_FILE" ]]; then
   fi
   NOW=$(date +%s)
   DIFF=$((NOW - MOD_TIME))
-  [[ "$DIFF" -lt 300 ]] && exit 0
+  [[ "$DIFF" -lt "${CHECKPOINT_FRESHNESS:-600}" ]] && exit 0
 fi
 
 TURN_COUNT=$(wc -l < "$TRANSCRIPT" 2>/dev/null | tr -d ' ')
 
-if [[ "$TURN_COUNT" -gt 10 ]]; then
+if [[ "$TURN_COUNT" -gt "${STOP_TURN_THRESHOLD:-25}" ]]; then
   jq -n '{
     "decision": "block",
     "reason": "You have unsaved session learnings. Update .claude/mem/session with what you learned this session before stopping. Include: decisions made, user preferences discovered, corrections to your understanding, and current task state."
@@ -160,6 +185,10 @@ Create `.claude/hooks/save-memory.sh`:
 #!/bin/bash
 set -euo pipefail
 
+# Load config (optional — defaults used if missing)
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "$HOOKS_DIR/config.sh" ]] && source "$HOOKS_DIR/config.sh"
+
 INPUT=$(cat)
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
@@ -174,12 +203,12 @@ SESSION_FILE=".claude/mem/session"
 TIMESTAMP=$(date +%Y-%m-%d)
 
 TURN_COUNT=$(wc -l < "$TRANSCRIPT" 2>/dev/null | tr -d ' ')
-[[ "$TURN_COUNT" -lt 4 ]] && exit 0
+[[ "$TURN_COUNT" -lt "${SAVE_TURN_THRESHOLD:-4}" ]] && exit 0
 
 TOOLS_USED=$(jq -r '
   select(.type == "tool_use") |
   .name + ":" + (.input.file_path // .input.command // .input.pattern // "" | split("\n")[0])
-' "$TRANSCRIPT" 2>/dev/null | sort -u | head -20)
+' "$TRANSCRIPT" 2>/dev/null | sort -u | head -"${TOOLS_CAP:-20}")
 
 GIT_HASH=$(git log -1 --format=%h 2>/dev/null || echo "unknown")
 GIT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
