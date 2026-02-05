@@ -7,6 +7,7 @@ A collection of reusable prompts and skills for Claude AI.
 | Skill | Description | Install |
 |-------|-------------|---------|
 | [memory-init](memory-init/) | Persistent memory system with 4 lifecycle hooks and configurable thresholds | `npx skills add spudy-vibing/Claude-Code-Prompts/memory-init` |
+| [implementation-plan](implementation-plan/) | Creates phased implementation plans from BRDs, architecture docs, user stories | `npx skills add spudy-vibing/Claude-Code-Prompts/implementation-plan` |
 
 ### Installing Skills
 
